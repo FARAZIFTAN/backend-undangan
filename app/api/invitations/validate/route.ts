@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { WisudawanModel } from '@/models/Wisudawan';
+import { InvitationModel } from '@/models/Invitation';
 import { apiResponse, apiError, handleApiError } from '@/lib/utils';
 
 // Force Node.js runtime
@@ -13,11 +14,23 @@ export async function GET(req: NextRequest) {
     const wisudawanId = searchParams.get('wisudawanId');
     const tamuSlug = searchParams.get('tamuSlug');
 
-    if (!wisudawanId) {
-      return apiError('Wisudawan ID is required', 400);
+    if (!wisudawanId || !tamuSlug) {
+      return apiError('Wisudawan ID and tamu slug are required', 400);
     }
 
-    // Check if wisudawan exists (that's all we need to validate)
+    // IMPORTANT: Check if invitation actually exists in database
+    const invitationExists = await InvitationModel.validate(wisudawanId, tamuSlug);
+
+    if (!invitationExists) {
+      return apiResponse(
+        false,
+        { valid: false, wisudawan: null },
+        'Invalid or deleted invitation link',
+        200
+      );
+    }
+
+    // If invitation exists, get wisudawan data
     const wisudawan = await WisudawanModel.findById(wisudawanId);
 
     if (!wisudawan) {
